@@ -53,3 +53,29 @@ All user input is untrusted
 No rate limiting is in place
 Assumptions explain why certain threats are or are not considered.
 
+5. Assets
+Examples:
+Integrity of system instructions
+Predictability of model behavior
+Availability of the service
+Trustworthiness of responses
+
+6. Actors
+External user (benign)
+External user (malicious)
+System operator
+
+7. Entry points
+For Stage 1:
+/chat endpoints
+User input field
+
+8. High-Level Threats
+Only ones that are not exploited yet
+Examples:
+Prompt injection altering system behavior
+Instruction hierarchy override
+Safety or policy bypass
+Output manipulation
+Resource exhaustion via crafted prompts
+

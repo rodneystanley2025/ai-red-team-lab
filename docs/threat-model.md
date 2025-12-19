@@ -1,0 +1,55 @@
+1. System Overview
+Describe what exists today, not what will exist later.
+
+Include:
+FastAPI service exposing a /chat endpoint
+Single LLM call per request
+Static system prompt loaded from file
+No authentication
+No RAG
+No agents
+
+This anchors the scope.
+
+2. System Boundaries
+This is where you explicitly define what is in scope vs. out of scope.
+In Scope
+FastAPI application
+Prompt construction logic
+System prompt content
+User-provided input
+Model responses returned to user
+Out of Scope (for Stage 1)
+Model training
+Model weights
+Network-level attacks
+Cloud infrastructure security
+Authentication / authorization
+Persistent storage
+
+This protects you from scope creep and shows maturity.
+
+3. Trust Boundaries
+These are the critical AI-specific boundaries.
+At minimum, include:
+
+User Input → Prompt Construction
+Untrusted user data is combined with trusted system instructions
+Prompt → Model Inference
+Model behavior depends on instruction hierarchy
+Model Output → API Response
+Output is returned directly without validation
+
+Explicitly stating these is a strong signal.
+
+4. Assumptions
+Assumptions make your threat model defensible.
+
+Examples (adapt as needed):
+The model provider enforces baseline safety policies
+The system prompt is not modified at runtime
+Users are unauthenticated and potentially malicious
+All user input is untrusted
+No rate limiting is in place
+Assumptions explain why certain threats are or are not considered.
+

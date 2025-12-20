@@ -1,5 +1,5 @@
 Date/time: 12/19/2025 11:31 PM
-Method: curl
+Method: curl on Windows 11
 
 Description:
 The system exhibited partial compliance with a prompt injection attempt by acknowledging the override request and referencing internal behavioral constraints.

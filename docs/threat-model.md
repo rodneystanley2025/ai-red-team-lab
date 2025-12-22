@@ -1,6 +1,13 @@
 1. System Overview
 Describe what exists today, not what will exist later.
 
+### Stage 2 Additions
+
+- Introduction of a model-invoked tool interface
+- Model output may trigger tool execution
+- Tool output is returned to the user
+- No authentication or authorization on tool usage
+
 Include:
 FastAPI service exposing a /chat endpoint
 Single LLM call per request
@@ -10,6 +17,15 @@ No RAG
 No agents
 
 This anchors the scope.
+
+Out of Scope (for Stage 1)
+
+In Scope (Stage 2 Additions)
+
+- Tool invocation logic
+- Tool input construction
+- Trust boundary between model output and tool execution
+- Tool outputs returned to the user
 
 2. System Boundaries
 This is where you explicitly define what is in scope vs. out of scope.
@@ -42,6 +58,12 @@ Output is returned directly without validation
 
 Explicitly stating these is a strong signal.
 
+Model Output → Tool Invocation
+
+Model-generated output is treated as actionable input for system tools.
+This represents a critical trust boundary where unvalidated model behavior may trigger system actions.
+
+
 4. Assumptions
 Assumptions make your threat model defensible.
 
@@ -53,12 +75,20 @@ All user input is untrusted
 No rate limiting is in place
 Assumptions explain why certain threats are or are not considered.
 
+The system implicitly trusts model-generated tool invocation requests
+Tools do not perform independent authorization or intent validation
+Model output may include attacker-influenced instructions
+
 5. Assets
 Examples:
 Integrity of system instructions
 Predictability of model behavior
 Availability of the service
 Trustworthiness of responses
+
+Integrity of tool execution
+Correctness of tool inputs
+Trust boundary between model reasoning and system actions
 
 6. Actors
 External user (benign)
@@ -70,6 +100,9 @@ For Stage 1:
 /chat endpoints
 User input field
 
+Model-generated tool invocation requests
+Indirect attacker influence via embedded instructions
+
 8. High-Level Threats
 Only ones that are not exploited yet
 Examples:
@@ -79,3 +112,9 @@ Safety or policy bypass
 Output manipulation
 Resource exhaustion via crafted prompts
 
+Stage 2 Threats
+
+- Indirect prompt injection via attacker-controlled content
+- Unauthorized or unintended tool invocation
+- Manipulation of tool inputs through model output
+- Over-trust of model-generated instructions

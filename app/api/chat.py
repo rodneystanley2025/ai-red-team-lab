@@ -1,25 +1,34 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
-import os
-from openai import OpenAI
+import json
+from tools.generate_report import generate_report
 
 router = APIRouter()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-class ChatRequest(BaseModel):
-    user_input: str
+@router.post("/chat/")
+def chat(payload: dict):
+    user_input = payload.get("user_input", "")
 
-@router.post("/")
-def chat(request: ChatRequest):
-    with open("app/prompts/system_prompt.txt", "r") as f:
-        system_prompt = f.read()
+    # 1. Call your existing LLM function
+    model_response = call_llm(user_input)
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.user_input}
-        ]
-    )
+    # model_response MUST be a string
 
-    return {"response": response.choices[0].message.content}
+    # 2. Attempt to parse model output as JSON
+    try:
+        parsed = json.loads(model_response)
+    except json.JSONDecodeError:
+        # Not JSON → return raw model output
+        return {"response": model_response}
+
+    # 3. Check for tool invocation
+    if isinstance(parsed, dict) and parsed.get("tool") == "generate_report":
+        content = parsed.get("content", "")
+
+        # 4. Invoke tool
+        tool_output = generate_report(content)
+
+        # 5. Return tool output
+        return {"response": tool_output}
+
+    # 6. Fallback
+    return {"response": model_response}

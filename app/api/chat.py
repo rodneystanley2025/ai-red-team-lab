@@ -4,6 +4,13 @@ from tools.generate_report import generate_report
 
 router = APIRouter()
 
+def call_llm(user_input: str) -> str:
+    """
+    Naive LLM stub for red team testing.
+    For now, it simply echoes user input.
+    """
+    return user_input
+
 @router.post("/chat/")
 def chat(payload: dict):
     user_input = payload.get("user_input", "")

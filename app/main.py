@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.chat import router as chat_router
+from app.api import chat
 
 app = FastAPI(
     title="AI Red Team Lab",
@@ -7,7 +7,7 @@ app = FastAPI(
     version="0.1"
 )
 
-app.include_router(chat_router, prefix="/chat")
+app.include_router(chat.router)
 
 @app.get("/")
 def health_check():

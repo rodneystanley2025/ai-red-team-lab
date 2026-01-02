@@ -118,3 +118,32 @@ Stage 2 Threats
 - Unauthorized or unintended tool invocation
 - Manipulation of tool inputs through model output
 - Over-trust of model-generated instructions
+
+## Stage 3 Threats ##
+In Scope (Stage 3)
+* Model claims of memory or stored data
+* Assertions of access to prior conversations
+* Assertions of access to internal documentation
+* Hallucinated system logs or reports
+* False training data disclosure
+
+# Out of Scope (Stage 3) #
+* Retrieval-Augmented Generation (RAG)
+* External databases
+* Persistent user memory
+* Fine-tuning datasets
+* Logging infrastructure
+
+# New High-Level Threats (Stage 3) #
+* Hallucinated memory or persistent storage
+* False claims of access to internal systems
+* Training data disclosure claims
+* Fabricated system logs or reports
+* Authority impersonation (“as an internal system…”)
+
+# New Assumptions (Stage 3) #
+* The model has no memory between requests
+* The system does not store user conversations
+* The model does not have access to training data contents
+* Any claim of stored data is untrusted
+

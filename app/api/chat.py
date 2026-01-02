@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 import json
-from tools.generate_report import generate_report
+from app.security.tool_schema import ToolInvocation
+from app.tools.registry import TOOL_REGISTRY
+
 
 router = APIRouter()
 ALLOW_TOOL_EXECUTION = False
@@ -16,27 +18,27 @@ def call_llm(user_input: str) -> str:
 def chat(payload: dict):
     user_input = payload.get("user_input", "")
 
-    # 1. Call your existing LLM function
     model_response = call_llm(user_input)
 
-    # model_response MUST be a string
-
-    # 2. Attempt to parse model output as JSON
+    # Always treat model output as untrusted text
     try:
-        parsed = json.loads(model_response)
+        raw = json.loads(model_response)
     except json.JSONDecodeError:
-        # Not JSON → return raw model output
         return {"response": model_response}
 
-    # 3. Check for tool invocation. This helps mitigate the execution of tools vulnerability.
-    if (
-            ALLOW_TOOL_EXECUTION
-            and isinstance(parsed, dict)
-            and parsed.get("tool") == "generate_report"
-    ):
-        content = parsed.get("content", "")
-        tool_output = generate_report(content)
-        return {"response": tool_output}
+    # Validate schema strictly
+    try:
+        invocation = ToolInvocation(**raw)
+    except Exception:
+        # JSON was present but invalid or unauthorized
+        return {"response": model_response}
 
-    # 6. Fallback
-    return {"response": model_response}
+    # Enforce allow-list
+    tool_fn = TOOL_REGISTRY.get(invocation.tool)
+    if not tool_fn:
+        return {"response": model_response}
+
+    # Execute tool
+    tool_output = tool_fn(invocation.content)
+
+    return {"response": tool_output}

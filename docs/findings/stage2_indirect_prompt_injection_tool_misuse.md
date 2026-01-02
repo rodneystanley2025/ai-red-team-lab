@@ -47,5 +47,15 @@ No validation or authorization enforced on tool execution
 Exploit requires a single request with no privileges
 Demonstrates a realistic and scalable abuse path for AI systems
 
-Re-Test Results (Post-Mitigation):
-Not performed (Stage 2 mitigation pending)
+Re-Test Results (Post-Mitigation)
+
+Test Date: 12/29/2025
+Result: Pass
+
+Observed Behavior:
+The system no longer executes internal tools based on model-generated JSON. Tool invocation is gated by an explicit application-controlled flag.
+
+Conclusion:
+The trust boundary between model output and privileged system actions is enforced. Model suggestions no longer result in unauthorized tool execution.
+
+

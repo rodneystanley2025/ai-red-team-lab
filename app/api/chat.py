@@ -3,6 +3,7 @@ import json
 from tools.generate_report import generate_report
 
 router = APIRouter()
+ALLOW_TOOL_EXECUTION = False
 
 def call_llm(user_input: str) -> str:
     """
@@ -27,14 +28,14 @@ def chat(payload: dict):
         # Not JSON → return raw model output
         return {"response": model_response}
 
-    # 3. Check for tool invocation
-    if isinstance(parsed, dict) and parsed.get("tool") == "generate_report":
+    # 3. Check for tool invocation. This helps mitigate the execution of tools vulnerability.
+    if (
+            ALLOW_TOOL_EXECUTION
+            and isinstance(parsed, dict)
+            and parsed.get("tool") == "generate_report"
+    ):
         content = parsed.get("content", "")
-
-        # 4. Invoke tool
         tool_output = generate_report(content)
-
-        # 5. Return tool output
         return {"response": tool_output}
 
     # 6. Fallback

@@ -41,21 +41,33 @@ Breakdown of trust boundary between user input and system actions
 Risk Rating:
 High
 
-Justification:
-Untrusted input indirectly influenced privileged system behavior
-No validation or authorization enforced on tool execution
-Exploit requires a single request with no privileges
-Demonstrates a realistic and scalable abuse path for AI systems
+Justification (updated):
+
+Tool invocation is now deterministic and schema-bound
+
+However, authorization checks are absent
+
+This enables untrusted users to trigger internal tooling
+
+Additional access controls are required to prevent misuse
 
 Re-Test Results (Post-Mitigation)
 
 Test Date: 12/29/2025
-Result: Pass
+Observed Behavior (Post-Mitigation 2):
 
-Observed Behavior:
-The system no longer executes internal tools based on model-generated JSON. Tool invocation is gated by an explicit application-controlled flag.
+The system continues to invoke the generate_report tool when the model emits a valid tool schema.
+
+No authorization checks are performed prior to tool execution.
+
+Tool output is returned directly to the user.
 
 Conclusion:
-The trust boundary between model output and privileged system actions is enforced. Model suggestions no longer result in unauthorized tool execution.
 
+Schema validation reduces malformed tool abuse.
 
+However, lack of authorization allows untrusted users to invoke internal tools.
+
+Additional mitigations are required to restrict tool access.
+
+This shows professional maturity: mitigations are incremental, not magical.

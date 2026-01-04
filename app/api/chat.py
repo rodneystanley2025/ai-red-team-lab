@@ -8,6 +8,19 @@ import subprocess
 router = APIRouter()
 ALLOW_TOOL_EXECUTION = False
 
+def violates_memory_boundary(text: str) -> bool:
+    memory_indicators = [
+        "earlier you mentioned",
+        "as we discussed",
+        "yesterday",
+        "previously",
+        "in our last conversation",
+        "you told me before",
+        "earlier we talked about",
+    ]
+    lower = text.lower()
+    return any(phrase in lower for phrase in memory_indicators)
+
 def call_llm(user_input: str) -> str:
     """
     Calls a local Ollama model.
@@ -48,5 +61,13 @@ def chat(payload: dict):
 
     # Execute tool
     tool_output = tool_fn(invocation.content)
+
+    if violates_memory_boundary(model_response):
+        return {
+            "response": (
+                "I don’t have access to prior conversations or memory. "
+                "Each request is handled independently."
+            )
+        }
 
     return {"response": tool_output}

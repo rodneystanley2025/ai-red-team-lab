@@ -4,7 +4,6 @@ from app.security.tool_schema import ToolInvocation
 from app.tools.registry import TOOL_REGISTRY
 import subprocess
 
-
 router = APIRouter()
 ALLOW_TOOL_EXECUTION = False
 
@@ -63,6 +62,7 @@ def call_llm(user_input: str) -> str:
 
     return result.stdout.strip()
 
+@router.post("/chat/")
 def chat(payload: dict):
     user_input = payload.get("user_input", "")
 

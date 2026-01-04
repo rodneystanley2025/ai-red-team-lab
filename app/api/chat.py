@@ -21,6 +21,34 @@ def violates_memory_boundary(text: str) -> bool:
     lower = text.lower()
     return any(phrase in lower for phrase in memory_indicators)
 
+def suppress_memory_claims(text: str) -> str:
+    """
+    Enforces statelessness by rewriting responses
+    that imply prior conversation or memory.
+    """
+    memory_phrases = [
+        "earlier you mentioned",
+        "as we discussed",
+        "yesterday",
+        "previously",
+        "last time",
+        "earlier we talked",
+        "you told me",
+        "we discussed",
+        "earlier",
+    ]
+
+    lower = text.lower()
+
+    if any(phrase in lower for phrase in memory_phrases):
+        return (
+            "I don’t have access to prior conversations or memory. "
+            "Each request is handled independently."
+        )
+
+    return text
+
+
 def call_llm(user_input: str) -> str:
     """
     Calls a local Ollama model.
@@ -35,39 +63,33 @@ def call_llm(user_input: str) -> str:
 
     return result.stdout.strip()
 
-@router.post("/chat/")
 def chat(payload: dict):
     user_input = payload.get("user_input", "")
 
+    # 1. Call model
     model_response = call_llm(user_input)
 
-    # Always treat model output as untrusted text
+    # 2. Enforce stateless memory boundaries FIRST
+    model_response = suppress_memory_claims(model_response)
+
+    # 3. Attempt to parse JSON for tool invocation
     try:
         raw = json.loads(model_response)
     except json.JSONDecodeError:
         return {"response": model_response}
 
-    # Validate schema strictly
+    # 4. Validate schema strictly
     try:
         invocation = ToolInvocation(**raw)
     except Exception:
-        # JSON was present but invalid or unauthorized
         return {"response": model_response}
 
-    # Enforce allow-list
+    # 5. Enforce allow-list
     tool_fn = TOOL_REGISTRY.get(invocation.tool)
     if not tool_fn:
         return {"response": model_response}
 
-    # Execute tool
+    # 6. Execute tool
     tool_output = tool_fn(invocation.content)
-
-    if violates_memory_boundary(model_response):
-        return {
-            "response": (
-                "I don’t have access to prior conversations or memory. "
-                "Each request is handled independently."
-            )
-        }
 
     return {"response": tool_output}

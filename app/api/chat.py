@@ -41,7 +41,7 @@ def suppress_memory_claims(text: str) -> str:
 
     if any(phrase in lower for phrase in memory_phrases):
         return (
-            "I don’t have access to prior conversations or memory. "
+            "I don’t have access to prior conversations or memory." 
             "Each request is handled independently."
         )
 

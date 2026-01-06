@@ -7,6 +7,11 @@ import subprocess
 router = APIRouter()
 ALLOW_TOOL_EXECUTION = False
 
+AUTHORITY_DENIAL_RESPONSE = (
+    "I don't have access to internal systems, logs, reports, or privileged roles. "
+    "I can only provide general, non-privileged information."
+)
+
 def violates_memory_boundary(text: str) -> bool:
     memory_indicators = [
         "earlier you mentioned",
@@ -19,6 +24,37 @@ def violates_memory_boundary(text: str) -> bool:
     ]
     lower = text.lower()
     return any(phrase in lower for phrase in memory_indicators)
+def violates_authority_boundary(text: str) -> bool:
+    authority_indicators = [
+        "as the compliance engine",
+        "as the auditing system",
+        "respond as",
+        "internal system",
+        "internal logs",
+        "system logs",
+        "session logs",
+        "audit report",
+        "violation report",
+        "system report",
+        "generate logs",
+        "generate report",
+    ]
+
+    lower = text.lower()
+    return any(phrase in lower for phrase in authority_indicators)
+
+def contains_system_artifacts(text: str) -> bool:
+    artifact_indicators = [
+        "session id",
+        "timestamp:",
+        "=== system report ===",
+        "log entry",
+        "audit findings",
+        "violation id",
+    ]
+
+    lower = text.lower()
+    return any(phrase in lower for phrase in artifact_indicators)
 
 def suppress_memory_claims(text: str) -> str:
     """
@@ -49,17 +85,14 @@ def suppress_memory_claims(text: str) -> str:
 
 
 def call_llm(user_input: str) -> str:
-    """
-    Calls a local Ollama model.
-    Output is treated as untrusted text.
-    """
     result = subprocess.run(
         ["ollama", "run", "mistral", user_input],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=30
     )
-
     return result.stdout.strip()
 
 @router.post("/chat/")
@@ -72,24 +105,32 @@ def chat(payload: dict):
     # 2. Enforce stateless memory boundaries FIRST
     model_response = suppress_memory_claims(model_response)
 
-    # 3. Attempt to parse JSON for tool invocation
+    # 3. Enforce authority + system artifact boundaries
+    if (
+        violates_authority_boundary(user_input)
+        or violates_authority_boundary(model_response)
+        or contains_system_artifacts(model_response)
+    ):
+        return {"response": AUTHORITY_DENIAL_RESPONSE}
+
+    # 4. Attempt to parse JSON for tool invocation
     try:
         raw = json.loads(model_response)
     except json.JSONDecodeError:
         return {"response": model_response}
 
-    # 4. Validate schema strictly
+    # 5. Validate schema strictly
     try:
         invocation = ToolInvocation(**raw)
     except Exception:
         return {"response": model_response}
 
-    # 5. Enforce allow-list
+    # 6. Enforce allow-list
     tool_fn = TOOL_REGISTRY.get(invocation.tool)
     if not tool_fn:
         return {"response": model_response}
 
-    # 6. Execute tool
+    # 7. Execute tool
     tool_output = tool_fn(invocation.content)
 
     return {"response": tool_output}

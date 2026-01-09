@@ -29,7 +29,7 @@ def call_llm(user_input: str) -> str:
 
     except TimeoutExpired:
         return (
-            "I’m unable to generate a response for that request. "
+            "I'm unable to generate a response for that request. "
             "Please rephrase or ask a different question."
         )
 

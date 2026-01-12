@@ -136,3 +136,6 @@ After implementation, the system should:
 
 This mitigation plan establishes a clear path from observed adversarial behavior to enforceable, auditable controls. 
 It reinforces system guarantees under realistic adaptive pressure while preserving legitimate use cases.
+
+- Implemented implicit-context detection to block memory evasion via assumed
+  conversational continuity (Stage 5.1).

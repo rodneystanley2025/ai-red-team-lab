@@ -1,91 +1,185 @@
-# Security Posture
+# Security Posture Overview
 
-## Overview
+## Purpose
 
-This document describes the current security posture of the AI Red Team Lab system as implemented. 
-It outlines enforced guarantees, known limitations, and explicitly documented assumptions. 
-The purpose is to provide a clear, defensible understanding of what the system protects against today and where 
-responsibility shifts to design or future stages.
+This document provides a consolidated view of the security posture of the AI Red Team Lab system following completion of adversarial testing (Stage 5), mitigation implementation (Stage 6), and residual risk acceptance (Stage 7). It is intended to explain *why* the system can be considered secure within its defined scope, while transparently acknowledging remaining risks.
 
-This posture reflects the system state after completion of Stages 1–3 mitigations.
+This document is descriptive, not aspirational. All claims are grounded in implemented controls and verified test outcomes.
 
 ---
 
-## Enforced Guarantees
+## System Scope
 
-The system enforces the following guarantees through explicit application logic and policy enforcement:
+The AI Red Team Lab is a locally hosted AI interaction system designed to:
 
-### 1. Stateless Interaction Enforcement
-- The system does not retain memory across requests.
-- Model outputs implying prior conversations or historical context are suppressed.
-- Any response that suggests recall of earlier interactions is rewritten to a stateless denial.
+* Accept untrusted user input
+* Generate AI model responses via a local LLM runtime
+* Enforce centralized security policies on all outputs
+* Prevent unsafe, misleading, or policy-violating behavior
 
-### 2. Authority Boundary Enforcement
-- The system does not assume privileged roles such as:
-  - Compliance engine
-  - Auditing system
-  - Internal system component
-- Prompts attempting to assign authority or internal roles result in canonical denial responses.
-- Fabricated internal artifacts (e.g., logs, reports, session IDs) are blocked.
+The system explicitly **does not**:
 
-### 3. Training Data Claim Suppression
-- The system does not confirm training on proprietary, confidential, or internal datasets.
-- Vague or specific claims about non-public training data are suppressed.
-- Responses are rewritten to neutral, high-level explanations of model training.
+* Persist user memory or conversational state
+* Execute tools without explicit allow-listing
+* Claim access to proprietary, confidential, or internal datasets
+* Provide operational guidance for harmful or illegal activities
 
-### 4. Tool Invocation Restrictions
-- Tool execution is gated behind strict schema validation.
-- Only explicitly registered tools may be executed.
-- Tool invocation cannot be triggered through free-form natural language alone.
-- Unauthorized or malformed tool requests are ignored safely.
-
-### 5. Policy Enforcement as a Single Authority
-- Security policies are enforced centrally via a policy enforcement layer.
-- No individual route handler or model output bypasses policy evaluation.
-- Policy violations result in consistent, canonical denial responses.
+All security claims in this document apply **only** to this defined scope.
 
 ---
 
-## Explicit Non-Guarantees
+## Threat Model Summary
 
-The system explicitly does **not** guarantee the following:
+The system was evaluated against adaptive adversaries capable of:
 
-- Protection against network-level or infrastructure attacks
-- Authentication, authorization, or identity verification
-- Data confidentiality beyond prompt and response handling
-- Protection against adversarial model weights or compromised model providers
-- Content moderation beyond defined security boundaries
+* Applying conversational pressure over multiple turns
+* Framing malicious requests as academic, fictional, or ethical
+* Attempting to induce fabricated memory or authority
+* Probing for training data leakage or proprietary claims
 
-These areas are intentionally out of scope for this lab.
+Threat modeling assumed:
 
----
+* Fully untrusted user input
+* No trust in model output correctness
+* Model behavior may drift or regress
 
-## Assumptions
-
-The following assumptions are required for this security posture to remain valid:
-
-- Each API request is treated as independent and unauthenticated
-- All user input is considered untrusted
-- The underlying model may hallucinate unless constrained by policy
-- No persistent storage or memory is enabled
-- Tool execution is intentionally limited and auditable
+As a result, **all model output is treated as untrusted text** and subject to deterministic enforcement.
 
 ---
 
-## Residual Risk
+## Core Security Design Principles
 
-Despite mitigations, residual risk remains in the following areas:
+### 1. Statelessness by Construction
 
-- Subtle semantic policy evasion through phrasing not covered by indicators
-- Model-generated responses that are technically compliant but misleading
-- Future expansion (e.g., RAG, agents) introducing new trust boundaries
+The system does not retain or retrieve prior conversational context. Statelessness is enforced at two layers:
 
-These risks are tracked and intentionally deferred to later stages.
+* **Architectural**: Each request is processed independently
+* **Policy**: Any output implying prior memory is rejected
+
+This prevents:
+
+* Memory fabrication
+* Decision continuity hallucinations
+* Multi-turn semantic escalation
 
 ---
 
-## Conclusion
+### 2. Centralized Policy Enforcement
 
-The AI Red Team Lab currently enforces strong boundaries around memory, authority, system artifacts, and tool execution. 
-While not a production-hardened system, it demonstrates layered defensive controls, explicit policy enforcement, and 
-verifiable security behavior suitable for red teaming, testing, and research purposes.
+All security decisions are made in a single module:
+
+```
+app/security/policy_enforcer.py
+```
+
+This module is the **sole authority** for:
+
+* Memory boundary enforcement
+* Authority and role boundary enforcement
+* Training data claim suppression
+* System artifact suppression
+
+No downstream component can override or bypass these decisions.
+
+---
+
+### 3. Deterministic Denial Responses
+
+When a violation is detected, the system returns **canonical denial messages**. These responses:
+
+* Do not leak internal reasoning
+* Do not vary based on prompt phrasing
+* Do not attempt partial compliance
+
+This eliminates ambiguity and reduces prompt-tuning attack surface.
+
+---
+
+### 4. Model Output Treated as Untrusted
+
+The LLM is not trusted to:
+
+* Correctly interpret policy
+* Avoid hallucination
+* Self-censor reliably
+
+As such:
+
+* The model is never given authority
+* The model is never allowed to execute code directly
+* Tool invocation requires strict schema validation and allow-listing
+
+---
+
+## Security Testing Summary
+
+### Stage 5 – Adversarial Evaluation
+
+The system was subjected to structured red-team testing across:
+
+* Memory evasion (5.1)
+* Training data softening (5.3)
+* Multi-turn pressure (5.4)
+* Policy contradiction via contextual framing (5.5)
+
+Initial failures were documented and preserved.
+
+---
+
+### Stage 6 – Mitigations
+
+Mitigations included:
+
+* Implicit context detection
+* Expanded training data boundary indicators
+* Strengthened statelessness enforcement
+* Clear separation of user intent vs. model output analysis
+
+All mitigations were validated via retesting.
+
+---
+
+### Stage 7 – Residual Risk Acceptance
+
+Remaining risks were formally assessed and documented in:
+
+```
+docs/stage7_residual_risk_register.md
+```
+
+No unmitigated **high-severity** risks remain within scope. Medium and low risks are explicitly accepted with justification.
+
+---
+
+## Known Limitations
+
+The following limitations are acknowledged and accepted:
+
+* The system relies on pattern-based detection rather than semantic intent modeling
+* Policy enforcement is conservative and may over-block benign content
+* The underlying model may regress without warning
+
+These limitations are documented as residual risks rather than defects.
+
+---
+
+## Security Posture Conclusion
+
+Based on:
+
+* Documented adversarial testing
+* Implemented and verified mitigations
+* Explicit residual risk acceptance
+
+The AI Red Team Lab demonstrates a **defensible and auditable security posture** appropriate for its intended scope and threat model.
+
+No claims are made beyond what has been tested, enforced, and documented.
+
+---
+
+## References
+
+* Stage 5 Findings (docs/findings/stage5/)
+* Stage 6 Mitigation Plan (docs/stage6_mitigation_plan.md)
+* Stage 6 Risk Assessment (docs/stage6_risk_assessment.md)
+* Stage 7 Residual Risk Register (docs/stage7_residual_risk_register.md)

@@ -29,7 +29,7 @@ AUTHORITY_DENIAL_RESPONSE = (
 
 TRAINING_DATA_DENIAL_RESPONSE = (
     "I don't have visibility into or access to specific training datasets. "
-    "I can’t confirm whether any particular proprietary or confidential data "
+    "I can't confirm whether any particular proprietary or confidential data "
     "was included during training."
 )
 
@@ -48,6 +48,7 @@ def violates_memory_boundary(text: str) -> bool:
         "you told me",
         "we talked about",
         "in our discussion",
+
     ]
 
     lower = text.lower()
@@ -84,6 +85,11 @@ def violates_training_data_boundary(text: str) -> bool:
         "non-public data",
         "company datasets",
         "restricted datasets",
+        "enterprise",
+        "enterprise data",
+        "enterprise partnerships",
+        "corporate partnerships",
+        "partner data",
     ]
     lower = text.lower()
     return any(p in lower for p in indicators)
@@ -108,7 +114,11 @@ def contains_system_artifacts(text: str) -> bool:
 
 def enforce_policies(user_input: str, model_output: str) -> str | None:
 
-    # 1. Statelessness / memory enforcement (highest priority)
+    # 0. Implicit context / statelessness enforcement (Stage 6.4)
+    if violates_implicit_context_boundary(user_input):
+        return STATELESS_DENIAL_RESPONSE
+
+    # 1. Explicit statelessness / memory enforcement
     if violates_memory_boundary(model_output):
         return STATELESS_DENIAL_RESPONSE
 
@@ -125,3 +135,24 @@ def enforce_policies(user_input: str, model_output: str) -> str | None:
         return TRAINING_DATA_DENIAL_RESPONSE
 
     return None
+
+def violates_implicit_context_boundary(text: str) -> bool:
+    indicators = [
+        "based on what you know",
+        "given the background",
+        "background you already have",
+        "earlier assessment",
+        "previous assessment",
+        "previous analysis",
+        "continue",
+        "continue from",
+        "where we left off",
+        "as before",
+        "already discussed",
+        "already provided",
+        "what decision did you reach",
+        "what conclusion did you reach",
+    ]
+
+    lower = text.lower()
+    return any(p in lower for p in indicators)

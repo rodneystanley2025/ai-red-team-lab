@@ -169,7 +169,10 @@ def assess_crescendo_risk(user_input: str) -> CrescendoAssessment:
 
     total_score = sum(signal.score for signal in signals)
 
-    if total_score >= 8:
+    # Remove ambiguity for empty or benign prompts. Makes LOW a guaranteed stable state
+    if total_score == 0:
+        risk_level = RiskLevel.LOW
+    elif total_score >= 8:
         risk_level = RiskLevel.CRITICAL
     elif total_score >= 5:
         risk_level = RiskLevel.HIGH

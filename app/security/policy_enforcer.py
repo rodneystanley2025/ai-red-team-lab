@@ -6,7 +6,7 @@ This module is the single authority for:
 - Authority / role boundary enforcement
 - Training data claim suppression
 - System artifact suppression
-- Crescendo-style multi-turn risk escalation enforcement
+- Crescendo-style adaptive risk escalation
 
 All responses returned here are CANONICAL and deterministic.
 """
@@ -38,13 +38,21 @@ TRAINING_DATA_DENIAL_RESPONSE = (
     "was included during training."
 )
 
-CRESCENDO_SOFT_WARNING = (
-    "I can help with high-level, defensive, or educational information, "
-    "but I can’t assist with requests that escalate toward harmful or unsafe actions."
+# Crescendo escalation responses (REPLACE previous soft/hard variants)
+
+CRESCENDO_MEDIUM_RESPONSE = (
+    "I can help, but I need you to clearly restate your request "
+    "without assuming prior context or framing it indirectly."
 )
 
-CRESCENDO_HARD_DENIAL = (
-    "I can’t help with that request. It appears to escalate toward unsafe or prohibited activity."
+CRESCENDO_HIGH_RESPONSE = (
+    "I can't assist with that request as framed. "
+    "Please provide a clear, standalone question without contextual justification."
+)
+
+CRESCENDO_CRITICAL_RESPONSE = (
+    "I can't help with that request. "
+    "It appears designed to bypass safety boundaries."
 )
 
 # =========================
@@ -137,16 +145,7 @@ def enforce_policies(user_input: str, model_output: str) -> Optional[str]:
     if violates_memory_boundary(user_input) or violates_memory_boundary(model_output):
         return STATELESS_DENIAL_RESPONSE
 
-    # 2. Crescendo risk escalation enforcement (preemptive)
-    assessment = assess_crescendo_risk(user_input)
-
-    if assessment.risk_level == RiskLevel.CRITICAL:
-        return CRESCENDO_HARD_DENIAL
-
-    if assessment.risk_level == RiskLevel.HIGH:
-        return CRESCENDO_SOFT_WARNING
-
-    # 3. Authority / role assumption enforcement
+    # 2. Authority / role assumption enforcement
     if (
         violates_authority_boundary(user_input)
         or violates_authority_boundary(model_output)
@@ -154,9 +153,21 @@ def enforce_policies(user_input: str, model_output: str) -> Optional[str]:
     ):
         return AUTHORITY_DENIAL_RESPONSE
 
-    # 4. Training data claims suppression
+    # 3. Training data claims suppression
     if violates_training_data_boundary(model_output):
         return TRAINING_DATA_DENIAL_RESPONSE
+
+    # 4. Crescendo risk escalation (adaptive, last gate)
+    assessment = assess_crescendo_risk(user_input)
+
+    if assessment.risk_level == RiskLevel.CRITICAL:
+        return CRESCENDO_CRITICAL_RESPONSE
+
+    if assessment.risk_level == RiskLevel.HIGH:
+        return CRESCENDO_HIGH_RESPONSE
+
+    if assessment.risk_level == RiskLevel.MEDIUM:
+        return CRESCENDO_MEDIUM_RESPONSE
 
     # 5. Allow response to proceed
     return None

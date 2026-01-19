@@ -101,3 +101,19 @@ This stage is complete when:
   * Parameters are documented
   * No raw user content is retained
   * Design is implementable in policy_enforcer without architectural changes
+
+## Evaluation Outcome: Cross-Turn Accumulation Failure
+
+Despite successful single-turn crescendo detection, cross-turn accumulation did not prevent semantic drift across turns.
+
+### Key Observation
+Earlier benign context allowed later turns to inherit unsafe semantic framing without sufficient risk carryover.
+
+### Root Cause
+Risk accumulation currently influences enforcement decisions but does not constrain semantic interpretation across turns.
+
+### Security Impact
+An adaptive adversary could exploit gradual topic drift to reach unsafe outcomes despite escalation logic.
+
+### Status
+Open – Requires semantic dampening or decay-based context shaping (planned Stage 11B/11C).

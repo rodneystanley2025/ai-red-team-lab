@@ -18,6 +18,11 @@ from app.security.crescendo_guard import (
     RiskLevel,
 )
 
+from app.security.risk_accumulator import RiskAccumulator
+
+# Create a singleton instance
+crescendo_accumulator = RiskAccumulator()
+
 # =========================
 # Canonical Denial Responses
 # =========================
@@ -160,13 +165,18 @@ def enforce_policies(user_input: str, model_output: str) -> Optional[str]:
     # 4. Crescendo risk escalation (adaptive, last gate)
     assessment = assess_crescendo_risk(user_input)
 
-    if assessment.risk_level == RiskLevel.CRITICAL:
+    accumulated_score = crescendo_accumulator.update(
+        delta=assessment.total_score
+    )
+
+    if accumulated_score >= 8:
+        crescendo_accumulator.reset()
         return CRESCENDO_CRITICAL_RESPONSE
 
-    if assessment.risk_level == RiskLevel.HIGH:
+    if accumulated_score >= 5:
         return CRESCENDO_HIGH_RESPONSE
 
-    if assessment.risk_level == RiskLevel.MEDIUM:
+    if accumulated_score >= 3:
         return CRESCENDO_MEDIUM_RESPONSE
 
     # 5. Allow response to proceed

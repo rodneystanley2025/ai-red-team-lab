@@ -20,6 +20,8 @@ from app.security.crescendo_guard import (
 
 from app.security.risk_accumulator import RiskAccumulator
 
+from app.security.security_telemetry import emit_security_event
+
 # Create a singleton instance
 crescendo_accumulator = RiskAccumulator()
 
@@ -169,8 +171,26 @@ def enforce_policies(user_input: str, model_output: str) -> Optional[str]:
         delta=assessment.total_score
     )
 
+    emit_security_event(
+        event_type="crescendo_assessment",
+        payload={
+            "total_score": assessment.total_score,
+            "risk_level": assessment.risk_level.value,
+            "accumulated_score": accumulated_score,
+            "signals": [s.name for s in assessment.signals],
+        },
+    )
+
     if accumulated_score >= 8:
         crescendo_accumulator.reset()
+        emit_security_event(
+            event_type="crescendo_critical_block",
+            payload={
+                "accumulated_score": accumulated_score,
+                "risk_level": assessment.risk_level.value,
+            },
+        )
+
         return CRESCENDO_CRITICAL_RESPONSE
 
     if accumulated_score >= 5:

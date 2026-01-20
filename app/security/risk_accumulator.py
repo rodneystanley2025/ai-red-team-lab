@@ -1,55 +1,46 @@
 """
-Cross-Turn Risk Accumulator
+Risk Accumulator – Cross-Turn Crescendo Risk Tracking
 
-Maintains a bounded, decaying risk score across turns
-to mitigate crescendo-style multi-step attacks.
+This module maintains a bounded, decaying risk score to detect
+crescendo-style attacks that escalate across multiple turns.
 
-Design guarantees:
-- No content storage
-- Numeric-only state
-- Explicit decay and reset
-- Session-scoped only
+Security properties:
+- Non-negative bounded accumulator
+- Deterministic decay
+- Stateless-by-default at system start
+- Resistant to risk laundering via negative carryover
 """
 
 from dataclasses import dataclass
-from time import time
 from typing import Optional
+
+from app.security.security_telemetry import emit_security_event
 
 
 @dataclass
-class RiskState:
-    score: int
-    last_updated: float
-
-
 class RiskAccumulator:
-    def __init__(
-        self,
-        decay_seconds: int = 180,
-        max_score: int = 10,
-    ):
-        self.decay_seconds = decay_seconds
-        self.max_score = max_score
-        self._state: Optional[RiskState] = None
+    """
+    Tracks accumulated risk across turns with decay.
+
+    Attributes:
+        total_score: Current accumulated risk score
+        decay_rate: Amount of risk reduced per turn
+        max_score: Optional upper bound for safety/auditability
+    """
+    total_score: int = 0
+    decay_rate: int = 2
+    max_score: Optional[int] = None
 
     def update(self, delta: int) -> int:
-        now = time()
+        """
+        Apply decay, add new risk delta, and return updated score.
 
-        if self._state is None:
-            self._state = RiskState(score=0, last_updated=now)
+        Args:
+            delta: Risk score contribution from the current input
 
-        elapsed = now - self._state.last_updated
+        Returns:
+            Updated accumulated risk score
+        """
+        old_score = self.total_score
 
-        if elapsed > self.decay_seconds:
-            self._state.score = 0
-
-        self._state.score = min(
-            self.max_score,
-            max(0, self._state.score + delta),
-        )
-        self._state.last_updated = now
-
-        return self._state.score
-
-    def reset(self) -> None:
-        self._state = None
+        # Apply deterministic

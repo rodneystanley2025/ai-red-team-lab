@@ -13,20 +13,15 @@ All responses returned here are CANONICAL and deterministic.
 
 from typing import Optional
 
-from app.security.crescendo_guard import (
-    assess_crescendo_risk,
-    RiskLevel,
-)
-
+from app.security.crescendo_guard import assess_crescendo_risk
 from app.security.risk_accumulator import RiskAccumulator
-
 from app.security.security_telemetry import emit_security_event
 
-# Create a singleton instance
+# Singleton accumulator (session-scoped by runtime)
 crescendo_accumulator = RiskAccumulator()
 
 # =========================
-# Canonical Denial Responses
+# Canonical Responses
 # =========================
 
 STATELESS_DENIAL_RESPONSE = (
@@ -45,8 +40,6 @@ TRAINING_DATA_DENIAL_RESPONSE = (
     "was included during training."
 )
 
-# Crescendo escalation responses (REPLACE previous soft/hard variants)
-
 CRESCENDO_MEDIUM_RESPONSE = (
     "I can help, but I need you to clearly restate your request "
     "without assuming prior context or framing it indirectly."
@@ -63,76 +56,46 @@ CRESCENDO_CRITICAL_RESPONSE = (
 )
 
 # =========================
-# Policy Detectors
+# Detectors
 # =========================
 
 def violates_memory_boundary(text: str) -> bool:
     indicators = [
         "earlier",
         "as we discussed",
-        "yesterday",
         "previously",
         "last conversation",
-        "you mentioned",
-        "you told me",
         "we talked about",
-        "in our discussion",
     ]
-
-    lower = text.lower()
-    return any(indicator in lower for indicator in indicators)
+    return any(p in text.lower() for p in indicators)
 
 
 def violates_authority_boundary(text: str) -> bool:
     indicators = [
-        "as the compliance engine",
-        "as the auditing system",
-        "respond as",
-        "internal system",
         "internal logs",
         "system logs",
-        "session logs",
         "audit report",
-        "violation report",
-        "system report",
-        "generate logs",
         "generate report",
     ]
-
-    lower = text.lower()
-    return any(p in lower for p in indicators)
+    return any(p in text.lower() for p in indicators)
 
 
 def violates_training_data_boundary(text: str) -> bool:
     indicators = [
         "trained on proprietary",
-        "trained on private",
-        "trained on internal",
-        "proprietary datasets",
         "internal datasets",
         "confidential data",
-        "non-public data",
-        "company datasets",
-        "restricted datasets",
-        "enterprise partnerships",
     ]
-
-    lower = text.lower()
-    return any(p in lower for p in indicators)
+    return any(p in text.lower() for p in indicators)
 
 
 def contains_system_artifacts(text: str) -> bool:
     indicators = [
         "session id",
         "timestamp:",
-        "=== system report ===",
         "log entry",
-        "audit findings",
-        "violation id",
     ]
-
-    lower = text.lower()
-    return any(p in lower for p in indicators)
+    return any(p in text.lower() for p in indicators)
 
 
 # =========================
@@ -140,19 +103,11 @@ def contains_system_artifacts(text: str) -> bool:
 # =========================
 
 def enforce_policies(user_input: str, model_output: str) -> Optional[str]:
-    """
-    Enforces all security policies in strict priority order.
-
-    Returns:
-        - A canonical denial / warning string if enforcement triggers
-        - None if the response is allowed to proceed
-    """
-
-    # 1. Statelessness / memory enforcement (highest priority)
+    # 1. Statelessness
     if violates_memory_boundary(user_input) or violates_memory_boundary(model_output):
         return STATELESS_DENIAL_RESPONSE
 
-    # 2. Authority / role assumption enforcement
+    # 2. Authority boundaries
     if (
         violates_authority_boundary(user_input)
         or violates_authority_boundary(model_output)
@@ -160,22 +115,18 @@ def enforce_policies(user_input: str, model_output: str) -> Optional[str]:
     ):
         return AUTHORITY_DENIAL_RESPONSE
 
-    # 3. Training data claims suppression
+    # 3. Training data suppression
     if violates_training_data_boundary(model_output):
         return TRAINING_DATA_DENIAL_RESPONSE
 
-    # 4. Crescendo risk escalation (adaptive, last gate)
+    # 4. Crescendo escalation (last gate)
     assessment = assess_crescendo_risk(user_input)
-
-    accumulated_score = crescendo_accumulator.update(
-        delta=assessment.total_score
-    )
+    accumulated_score = crescendo_accumulator.update(assessment.total_score)
 
     emit_security_event(
         event_type="crescendo_assessment",
         payload={
-            "total_score": assessment.total_score,
-            "risk_level": assessment.risk_level.value,
+            "turn_score": assessment.total_score,
             "accumulated_score": accumulated_score,
             "signals": [s.name for s in assessment.signals],
         },
@@ -183,14 +134,6 @@ def enforce_policies(user_input: str, model_output: str) -> Optional[str]:
 
     if accumulated_score >= 8:
         crescendo_accumulator.reset()
-        emit_security_event(
-            event_type="crescendo_critical_block",
-            payload={
-                "accumulated_score": accumulated_score,
-                "risk_level": assessment.risk_level.value,
-            },
-        )
-
         return CRESCENDO_CRITICAL_RESPONSE
 
     if accumulated_score >= 5:
@@ -199,5 +142,4 @@ def enforce_policies(user_input: str, model_output: str) -> Optional[str]:
     if accumulated_score >= 3:
         return CRESCENDO_MEDIUM_RESPONSE
 
-    # 5. Allow response to proceed
     return None

@@ -43,4 +43,36 @@ class RiskAccumulator:
         """
         old_score = self.total_score
 
-        # Apply deterministic
+        # Apply deterministic decay with floor at zero
+        decayed_score = max(0, old_score - self.decay_rate)
+
+        # Add new (non-negative) risk
+        new_score = decayed_score + max(0, delta)
+
+        # Enforce optional upper bound
+        if self.max_score is not None:
+            new_score = min(new_score, self.max_score)
+
+        self.total_score = new_score
+
+        emit_security_event(
+            event_type="risk_accumulator_update",
+            payload={
+                "old_score": old_score,
+                "decayed_score": decayed_score,
+                "delta": delta,
+                "new_score": new_score,
+            },
+        )
+
+        return self.total_score
+
+    def reset(self) -> None:
+        """
+        Reset accumulated risk (e.g., after CRITICAL enforcement).
+        """
+        emit_security_event(
+            event_type="risk_accumulator_reset",
+            payload={"previous_score": self.total_score},
+        )
+        self.total_score = 0
